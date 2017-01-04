@@ -114,7 +114,7 @@ vocab_size = 793471
 ```
 **result:**
 
-On GBW corpus, we achived a perplexcity of 43.24 after 5 epochs, taking about two days to train on 2 GPUs with synchronous gradient updates. Detail experiment result and usage demo can be found here [tf-adaptive-softmax-lstm-lm](https://github.com/yangsaiyong/tf-adaptive-softmax-lstm-lm).
+On GBW corpus, we achived a perplexcity of 43.24 after 5 epochs, taking about two days to train on 2 GPUs with synchronous gradient updates.
 
 | Epoch | Elapse | Train PPL | Valid PPL | Test PPL |
 | ----- | ------ | --------- | --------- | -------- |
