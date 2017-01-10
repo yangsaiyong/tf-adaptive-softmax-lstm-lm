@@ -15,42 +15,35 @@ See [Efficient softmax approximation for GPUs](https://arxiv.org/pdf/1609.04309v
 The implementation of AdaptiveSoftmax on TensorFlow can be found here: [TencentAILab/tensorflow](https://github.com/TencentAILab/tensorflow/blob/master/tensorflow/python/ops/nn_impl.py)
 
 ## Usage
-```python
-#outputs is a tensor of shape [batch_size, lstm_hidden_size * num_step]
-output = tf.reshape(tf.concat(1, outputs), [-1, lstm_hidden_size])
 
-if softmax_type == "AdaptiveSoftmax":
-	cutoff = config.adaptive_softmax_cutoff # For example: [2000,10000]
-	loss, losses_for_train = tf.nn.adaptive_softmax_loss(output, labels, cutoff)
-else: # Full softmax
-	softmax_w = tf.get_variable("softmax_w", [lstm_hidden_size, vocab_size])
-	softmax_b = tf.get_variable("softmax_b", [vocab_size])
-	logits = tf.matmul(output, softmax_w) + softmax_b
-	loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, labels)
-	losses_for_train = [loss]
-
-if is_training:
-	lr = tf.Variable(0.1, trainable=False)
-	optimizer = tf.train.AdagradOptimizer(lr, 1e-5)
-	tvars = tf.trainable_variables()
-	grads = tf.gradients([tf.reduce_sum(loss) / batch_size for loss in losses_for_train], tvars)
-	grads = [tf.clip_by_norm(grad, 1.0) if grad is not None else grad for grad in grads]
-	eval_op = optimizer.apply_gradients(zip(grads, tvars))
-else:
-	eval_op = tf.no_op()
+Train with AdaptiveSoftmax:
+```shell
+python train_lm.py --data_path=ptb_data --use_adaptive_softmax=1
+```
+Train with full softmax:
+```shell
+python train_lm.py --data_path=ptb_data --use_adaptive_softmax=0
 ```
 
-## Language Modeling Result on PTB
+## Experiment results
+
+### Language Modeling on PTB
+With the hyper parameters below, it takes 5min54s to train 20 epochs on PTB corpus, the final perplexity on test set 
+is *88.51*. With the same parameters and using full softmax, it takes 6min57s to train 20 epochs, and the final perplexity on test set is *89.00*. 
+
+Since the PTB vocabulary size is only 10K, the speed up is not that significant.
+
+
 **hyper parameters:**
 ```python
-gpu_num = 1
-word_embedding_dim = 512
-train_batch_size = 128
+epoch_num = 20
+51,train_batch_size = 128
 train_step_size = 20
 valid_batch_size = 128
 valid_step_size = 20
 test_batch_size = 20
 test_step_size = 1
+word_embedding_dim = 512
 lstm_layers = 1
 lstm_size = 512
 lstm_forget_bias = 0.0
@@ -61,37 +54,40 @@ decay = 0.5
 decay_when = 1.0
 dropout_prob = 0.5
 adagrad_eps = 1e-5
-softmax = AdaptiveSoftmax;2000
 vocab_size = 10001
+softmax_type = "AdaptiveSoftmax"
+adaptive_softmax_cutoff = [2000, vocab_size]
 ```
 **result:**
 
 | Epoch | Elapse  | Train PPL | Valid PPL | Test PPL |
 | ----- | ------  | ----------| --------- | -------- |
-| 1     | 0min37s | 409.586   | 175.262   | 169.584  |
-| 2     | 1min13s | 159.506   | 136.062   | 130.974  |
-| 3     | 1min49s | 120.364   | 120.210   | 115.960  |
-| 4     | 2min25s | 101.029   | 112.828   | 108.182  |
-| 5     | 3min01s | 89.171    | 108.167   | 103.796  |
-| 6     | 3min37s | 81.405    | 106.010   | 101.007  |
-| 7     | 4min13s | 75.221    | 104.244   | 99.148   |
-| 8     | 4min49s | 70.694    | 102.997   | 97.355   |
-| 9     | 5min25s | 67.076    | 102.685   | 97.030   |
-| 10    | 6min01s | 61.166    | 99.943    | 94.251   |
-| 11    | 6min37s | 58.201    | 99.668    | 93.711   |
-| 12    | 7min13s | 55.737    | 97.806    | 91.907   |
-| 13    | 7min49s | 54.249    | 97.869    | 91.754   |
-| 14    | 8min25s | 53.289    | 96.525    | 90.529   |
-| 15    | 9min01s | 52.703    | 96.411    | 90.333   |
-| 16    | 9min37s | 52.178    | 95.803    | 89.813   |
-| 17    | 10min13s| 51.844    | 95.484    | 89.489   |
-| 18    | 10min49s| 51.640    | 95.287    | 89.316   | 
+|  1    | 0min18s |   376.407 |  169.152  |  164.039 |
+|  2    | 0min35s |   154.324 |  132.648  |  127.494 |
+|  3    | 0min53s |   117.210 |  118.547  |  113.197 |
+|  4    | 1min11s |    98.662 |  111.791  |  106.373 |
+|  5    | 1min28s |    87.366 |  107.808  |  102.588 |
+|  6    | 1min46s |    79.448 |  105.028  |  100.024 |
+|  7    | 2min04s |    73.749 |  103.705  |   98.220 |
+|  8    | 2min21s |    69.392 |  102.939  |   96.931 |
+|  9    | 2min39s |    62.737 |  100.174  |   94.043 |
+|  10   | 2min57s |    59.423 |   99.412  |   93.153 |
+|  11   | 3min15s |    56.634 |   97.600  |   91.271 |
+|  12   | 3min32s |    55.036 |   97.388  |   91.061 |
+|  13   | 3min50s |    54.002 |   96.127  |   89.796 |
+|  14   | 4min08s |    53.232 |   96.170  |   89.805 |
+|  15   | 4min25s |    52.844 |   95.461  |   89.130 |
+|  16   | 4min43s |    52.488 |   95.085  |   88.788 |
+|  17   | 5min01s |    52.314 |   94.905  |   88.615 |
+|  18   | 5min18s |    52.172 |   94.835  |   88.553 |
+|  19   | 5min36s |    52.038 |   94.806  |   88.526 |
+|  20   | 5min54s |    51.998 |   94.788  |   88.510 |
 
 
-## Language Modeling Result on Google 1Billion Word corpus
+### Language Modeling on Google 1Billion Word corpus
+
 **hyper parameters:**
 ```python
-gpu_num = 2
 word_embedding_dim = 256
 train_batch_size = 256
 train_step_size = 20
@@ -109,8 +105,9 @@ decay = 0.5
 decay_when = 1.0
 dropout_prob = 0.01
 adagrad_eps = 1e-5
-softmax = AdaptiveSoftmax;4000,40000,200000
 vocab_size = 793471
+softmax_type = "AdaptiveSoftmax"
+adaptive_softmax_cutoff = [4000,40000,200000, vocab_size]
 ```
 **result:**
 
