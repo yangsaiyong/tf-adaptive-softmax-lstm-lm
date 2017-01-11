@@ -6,7 +6,6 @@ import numpy as np
 import tensorflow as tf
 
 from reader import *
-import rnn
 
 flags = tf.flags
 flags.DEFINE_string("data_path", "ptb_data", "Where the training/test data is stored.")
