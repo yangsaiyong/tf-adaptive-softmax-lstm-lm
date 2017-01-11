@@ -12,7 +12,7 @@ See [Efficient softmax approximation for GPUs](https://arxiv.org/pdf/1609.04309v
 
 ## Implementation
 
-The implementation of AdaptiveSoftmax on TensorFlow can be found here: [TencentAILab/tensorflow](https://github.com/TencentAILab/tensorflow/blob/master/tensorflow/python/ops/nn_impl.py)
+The implementation of AdaptiveSoftmax on TensorFlow can be found here: [TencentAILab/tensorflow](https://github.com/TencentAILab/tensorflow)
 
 ## Usage
 
