@@ -2,8 +2,10 @@ import os
 import time
 import numpy as np
 
+
 def INFO_LOG(info):
-    print "[%s]%s" % (time.strftime("%Y-%m-%d %X", time.localtime()), info)
+    print("[%s]%s" % (time.strftime("%Y-%m-%d %X", time.localtime()), info))
+
 
 class Vocab(object):
     def __init__(self):
@@ -21,27 +23,30 @@ class Vocab(object):
             line_num = 0
             for line in open(_file):
                 line_num += 1
-                for w in line.strip().replace('<UNK>', self.UNK).split():
-                    if self.word_cnt.has_key(w):
+                for w in line.strip().replace('<unk>', self.UNK).split():
+                    if w in self.word_cnt:
                         self.word_cnt[w] += 1
                     else:
                         self.word_cnt[w] = 1
             self.word_cnt[self.BOS] += line_num
             self.word_cnt[self.EOS] += line_num
-        count_pairs = sorted(self.word_cnt.items(), key = lambda x: (-x[1], x[0]))
+        count_pairs = sorted(self.word_cnt.items(),
+                             key=lambda x: (-x[1], x[0]))
         self.words, _ = list(zip(*count_pairs))
         self.word2id = dict(zip(self.words, range(len(self.words))))
         self.UNK_ID = self.word2id[self.UNK]
         INFO_LOG("vocab size: {}".format(self.size()))
- 
+
     def encode(self, sentence):
-        return [self.word2id[w] if self.word2id.has_key(w) else self.UNK_ID for w in sentence]
+        return [self.word2id[w] if w in self.word2id
+                else self.UNK_ID for w in sentence]
 
     def decode(self, ids):
         return [self.words[_id] for _id in ids]
 
     def size(self):
         return len(self.words)
+
 
 class Reader(object):
     def __init__(self, data_path):
@@ -79,22 +84,23 @@ class Reader(object):
         batch_len = data_len // batch_size
         batch_num = (batch_len - 1) // step_size
         if batch_num == 0:
-            raise ValueError("batch_num == 0, decrease batch_size or step_size")
-        
-        INFO_LOG("  {} sentence, {}/{} tokens with/out {}".format(line_num, total_token, token_num, self.vocab.EOS))
+            raise ValueError(
+                "batch_num == 0, decrease batch_size or step_size")
+
+        INFO_LOG("  {} sentence, {}/{} tokens with/out {}".format(line_num,
+                                                                  total_token, token_num, self.vocab.EOS))
 
         used_token = batch_num * batch_size * step_size
-        INFO_LOG("  {} batches, {}*{}*{} = {}({:.2%}) tokens will be used".format(batch_num,  
-            batch_num, batch_size, step_size, used_token, float(used_token) / total_token))
+        INFO_LOG("  {} batches, {}*{}*{} = {}({:.2%}) tokens will be used".format(batch_num,
+                                                                                  batch_num, batch_size, step_size, used_token, float(used_token) / total_token))
 
         word_data = np.zeros([batch_size, batch_len], dtype=np.int32)
         for j in range(batch_size):
             index = j * batch_len
-            word_data[j] = data[index : index + batch_len]
+            word_data[j] = data[index:index + batch_len]
         for batch_id in range(batch_num):
             index = step_size * batch_id
-            x = word_data[:, index : index + step_size]
-            y = word_data[:, index + 1 : index + step_size + 1]
+            x = word_data[:, index:index + step_size]
+            y = word_data[:, index + 1:index + step_size + 1]
             n = batch_size * step_size
-            yield(batch_id, batch_num, x, y, n) 
-
+            yield(batch_id, batch_num, x, y, n)
