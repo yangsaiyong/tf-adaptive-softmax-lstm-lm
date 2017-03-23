@@ -59,8 +59,8 @@ def adaptive_softmax_loss(inputs,
     with ops.name_scope(name, "AdaptiveSoftmax"):
         if initializer is None:
             stdv = math.sqrt(1. / input_dim)
-        initializer = init_ops.random_uniform_initializer(
-            -stdv * 0.8, stdv * 0.8)
+            initializer = init_ops.random_uniform_initializer(
+                                      -stdv * 0.8, stdv * 0.8)
 
         head_dim = cutoff[0] + cluster_num
         head_w = variable_scope.get_variable("adaptive_softmax_head_w",
