@@ -6,7 +6,7 @@ This repository shows the experiment result of LSTM language models on PTB (Penn
 
 The adaptive softmax is a faster way to train a softmax classifier over a huge number of classes, and can be used for **both training and prediction**. For example, it can be used for training a Language Model with a very huge vocabulary, and the trained languaed model can be used in speech recognition, text generation, and machine translation very efficiently.
 
-Tha adaptive softmax has been used in the ASR system developed by **Tencent AI Lab**, and achieved about **20x speed up** than full sotfmax in the second pass for rescoing.
+Tha adaptive softmax has been used in the ASR system developed by **Tencent AI Lab**, and achieved about **20x speed up** than full sotfmax in the second pass for rescoring.
 
 See [Efficient softmax approximation for GPUs](https://arxiv.org/pdf/1609.04309v2.pdf) for detail about the adaptive softmax algorithms.
 
