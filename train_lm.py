@@ -1,17 +1,33 @@
 #!/usr/bin/python -u
+#encoding=utf8
+#Author: yangsaiyong@gmail.com
+#Update: 2018.10.17
+
 import os
 import time
 
 import numpy as np
 import tensorflow as tf
 
+from tensorflow.contrib.rnn import BasicLSTMCell
+from tensorflow.contrib.rnn import MultiRNNCell
+from tensorflow.contrib.rnn import DropoutWrapper
+
 from reader import *
+import softmax
 
 flags = tf.flags
 flags.DEFINE_string("data_path", "ptb_data", "Where the training/test data is stored.")
 flags.DEFINE_bool("use_adaptive_softmax", True, "Train using adaptive softmax")
+flags.DEFINE_integer("gpuid", 0, "GPU ID")
 
 FLAGS = flags.FLAGS
+
+def parse_device(gpuid): 
+    os.environ["CUDA_VISIBLE_DEVICES"] = "%s" % gpuid
+    print "Use GPU:"
+    print "device {} => /gpu:{}".format(gpuid, 0)
+    return "/gpu:0"
 
 class LSTMLM(object):
     def __init__(self, config, mode, device, reuse=None):
@@ -58,43 +74,36 @@ class LSTMLM(object):
                 inputs = tf.nn.dropout(inputs, keep_prob=1 - config.dropout_prob)
 
             # LSTM
-            lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(lstm_size, forget_bias=lstm_forget_bias, state_is_tuple=False)
+            lstm_cell = BasicLSTMCell(lstm_size, forget_bias=lstm_forget_bias, state_is_tuple=False)
             if self.is_training and config.dropout_prob > 0:
-                lstm_cell = tf.nn.rnn_cell.DropoutWrapper(lstm_cell, 
-                    output_keep_prob=1. - config.dropout_prob)
-            cell = tf.nn.rnn_cell.MultiRNNCell([lstm_cell] * lstm_layers, state_is_tuple=False)
+                lstm_cell = DropoutWrapper(lstm_cell, output_keep_prob=1. - config.dropout_prob)
+            cell = MultiRNNCell([lstm_cell] * lstm_layers, state_is_tuple=False)
 
-            inputs = tf.unstack(inputs, axis=1)
-            outputs, self.final_state = tf.nn.rnn(cell, inputs, initial_state=self.initial_state)
+            #inputs = tf.unstack(inputs, axis=1)
+            output, self.final_state = tf.nn.dynamic_rnn(cell, inputs, initial_state=self.initial_state)
 
-            output = tf.reshape(tf.concat(1, outputs), [-1, lstm_size])
+            #output = tf.reshape(tf.concat(1, outputs), [-1, lstm_size])
+            output = tf.reshape(output, [-1, lstm_size])
 
             # Softmax & loss
-            labels = tf.reshape(self.targets, [-1])
             if config.softmax_type == 'AdaptiveSoftmax':
                 cutoff = config.adaptive_softmax_cutoff
-                self.loss, training_losses = tf.contrib.layers.adaptive_softmax_loss(output, 
-                    labels, cutoff)
+                softmax_layer = softmax.AdaptiveSoftmax(lstm_size, cutoff)
             else:
-                stdv = np.sqrt(1. / vocab_size)
-                initializer = tf.random_uniform_initializer(-stdv * 0.8, stdv * 0.8)
-                softmax_w = tf.get_variable("softmax_w", [lstm_size, vocab_size], initializer=initializer)
-                softmax_b = tf.get_variable("softmax_b", [vocab_size], 
-                    initializer=tf.constant_initializer(0.0, dtype=tf.float32))
-                logits = tf.matmul(output, softmax_w) + softmax_b
-                self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, labels)
-                training_losses = [self.loss]
+                softmax_layer = softmax.FullSoftmax(lstm_size, vocab_size)
+            self.loss, training_losses = softmax_layer.loss(output, tf.reshape(self.targets, [-1]), 'loss')
 
             self.cost = tf.reduce_sum(self.loss)
 
             if self.is_training:
                 self.lr = tf.Variable(0.0, trainable=False)
                 optimizer = tf.train.AdagradOptimizer(self.lr, config.adagrad_eps)
-                tvars = tf.trainable_variables()
-                grads = tf.gradients([tf.reduce_sum(loss) / batch_size for loss in training_losses],
-                    tvars)
-                grads = [tf.clip_by_norm(grad, config.max_grad_norm) if grad is not None else grad for grad in grads]
-                self.eval_op = optimizer.apply_gradients(zip(grads, tvars))
+                losses = [tf.reduce_sum(loss) / batch_size for loss in training_losses]
+                trainable_vars = tf.trainable_variables()
+                grads = tf.gradients(losses, trainable_vars)
+                grads = [tf.clip_by_norm(grad, config.max_grad_norm) \
+                    if grad is not None else grad for grad in grads]
+                self.eval_op = optimizer.apply_gradients(zip(grads, trainable_vars))
             else:
                 self.eval_op = tf.no_op()
 
@@ -175,9 +184,7 @@ def main(_):
     else:
         config.softmax_type = 'FullSoftmax'
 
-    gpuid = 0
-    os.environ["CUDA_VISIBLE_DEVICES"] = '{}'.format(gpuid)
-    device = '/gpu:0'
+    device = parse_device(FLAGS.gpuid)
     
     lr_updater = LearningRateUpdater(config.learning_rate, config.decay, config.decay_when)
 

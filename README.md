@@ -18,11 +18,11 @@ The implementation of AdaptiveSoftmax on TensorFlow can be found here: [TencentA
 
 Train with AdaptiveSoftmax:
 ```shell
-python train_lm.py --data_path=ptb_data --use_adaptive_softmax=1
+python train_lm.py --data_path=ptb_data --gpuid=0 --use_adaptive_softmax=1
 ```
 Train with full softmax:
 ```shell
-python train_lm.py --data_path=ptb_data --use_adaptive_softmax=0
+python train_lm.py --data_path=ptb_data --gpuid=0 --use_adaptive_softmax=0
 ```
 
 ## Experiment results
@@ -37,7 +37,7 @@ Since the PTB vocabulary size is only 10K, the speed up is not that significant.
 **hyper parameters:**
 ```python
 epoch_num = 20
-51,train_batch_size = 128
+train_batch_size = 128
 train_step_size = 20
 valid_batch_size = 128
 valid_step_size = 20
@@ -125,6 +125,7 @@ On GBW corpus, we achived a perplexcity of 43.24 after 5 epochs, taking about tw
 |  8    |79h37min|  36.884   |  46.342   | 43.097   |
 
 ##Reference
+
 [1] Grave E, Joulin A, Cissé M, et al. Efficient softmax approximation for GPUs[J]. arXiv preprint arXiv:1609.04309, 2016.
 
 [2] https://github.com/facebookresearch/adaptive-softmax
